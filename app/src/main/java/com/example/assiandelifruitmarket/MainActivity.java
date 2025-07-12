@@ -2,8 +2,10 @@ package com.example.assiandelifruitmarket;
 
 import android.app.Dialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
@@ -16,17 +18,20 @@ import android.widget.ImageView;
 import android.widget.Spinner;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -129,6 +134,71 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setAdapter(fa);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         Log.d("setupRecyclerView","stam");
+
+        ItemTouchHelper.SimpleCallback simpleCallback = new ItemTouchHelper.SimpleCallback(
+                ItemTouchHelper.UP|ItemTouchHelper.DOWN, //
+                ItemTouchHelper.LEFT| ItemTouchHelper.RIGHT
+        ) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                int fromPos = viewHolder.getAdapterPosition();
+                int toPos = target.getAdapterPosition();
+                // Swap items and notify adapter
+                Collections.swap(fruitList, fromPos, toPos);
+                fa.notifyItemMoved(fromPos, toPos);
+                return true;
+            }
+
+            @Override
+            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                int position = viewHolder.getAdapterPosition();
+                FruitItem fruitItem = fruitList.get(position);
+
+                if (direction == ItemTouchHelper.LEFT){
+                    fa.notifyItemChanged(position);
+
+                    showDeleteConfirmationDialog(position, fruitItem);
+                } else if (direction == ItemTouchHelper.RIGHT){
+                    searchFruitInMaps(fruitItem);
+                    //searchFruitInGoogle(fruitItem);
+                    //shareItem(fruitItem);
+                    fa.notifyItemChanged(position);
+                }
+
+            }
+
+            private void searchFruitInGoogle(FruitItem fruit) {
+                String query = fruit.getName();
+                Intent intent = new Intent(Intent.ACTION_VIEW,
+                        Uri.parse("https://www.google.com/search?q=" + Uri.encode(query)));
+                startActivity(intent);
+            }
+
+            private void searchFruitInMaps(FruitItem fruitItem)
+            {
+                String fruitName = fruitItem.getName();
+                Uri gmmIntentUri = Uri.parse("geo:32.29230,34.93780?q=" + Uri.encode(fruitName));
+                Intent mapIntent = new Intent(Intent.ACTION_VIEW, gmmIntentUri);
+                mapIntent.setPackage("com.google.android.apps.maps");
+                startActivity(mapIntent);
+            }
+
+            private void showDeleteConfirmationDialog(int position, FruitItem fruitItem) {
+            }
+
+            private void shareItem(FruitItem fruitItem) {
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("text/plain");
+                shareIntent.putExtra(
+                        Intent.EXTRA_TEXT,
+                        "Check out this fruit: " + fruitItem.getName() + "\n" + fruitItem.getDescription());
+                startActivity(Intent.createChooser(shareIntent, "Share via"));
+            }
+
+        };
+
+        ItemTouchHelper itemTouchHelper = new ItemTouchHelper(simpleCallback);
+        itemTouchHelper.attachToRecyclerView(recyclerView);
     }
 
     private void initUI() {
